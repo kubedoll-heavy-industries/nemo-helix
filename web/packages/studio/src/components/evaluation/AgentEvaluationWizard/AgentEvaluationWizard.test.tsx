@@ -4,6 +4,7 @@
 import { DEFAULT_WORKSPACE } from '@nemo/common/src/models/constants';
 import { getListEvaluationsQueryKey } from '@nemo/sdk/generated/platform/evaluations';
 import { getListExperimentsQueryKey } from '@nemo/sdk/generated/platform/experiments';
+import { getFilesListFilesetFilesQueryKey } from '@nemo/sdk/generated/platform/files';
 import type { EvaluationResponse, ExperimentResponse } from '@nemo/sdk/generated/platform/schema';
 import { AgentEvaluationWizard } from '@studio/components/evaluation/AgentEvaluationWizard';
 import { EVAL_CONFIG_FILESET_KEY } from '@studio/components/evaluation/experimentEvalConfig';
@@ -13,9 +14,30 @@ import { server } from '@studio/mocks/node';
 import { getAgentEvaluationsTabRoute } from '@studio/routes/utils';
 import { LOCATION_DISPLAY_TEST_ID } from '@studio/tests/util/constants';
 import { LocationDisplay } from '@studio/tests/util/LocationDisplay';
-import { renderRoute, screen, waitFor } from '@studio/tests/util/render';
+import { renderRoute, screen, waitFor, within } from '@studio/tests/util/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+
+vi.mock('@studio/components/filesets/hooks/useDownloadFileAsArrayBuffer', () => ({
+  useFetchFileAsArrayBuffer: () => async () =>
+    new TextEncoder().encode('{"prompt": "hi", "expected": "hi"}\n').buffer,
+}));
+
+vi.mock('@nemo/common/src/components/DatasetFileSelect/ControlledDatasetFileSelect', async () =>
+  (await import('@studio/tests/util/mockDatasetPick')).datasetFileSelectMock()
+);
+
+vi.mock(
+  '@studio/components/evaluation/ModelEvaluationWizard/useDatasetPreview',
+  async (importOriginal) =>
+    (await import('@studio/tests/util/mockDatasetPick')).datasetPreviewMock(
+      await importOriginal(),
+      {
+        prompt: 'hi',
+        expected: 'hi',
+      }
+    )
+);
 
 const AGENT = 'my-agent';
 
@@ -94,7 +116,10 @@ const mockLists = () => {
         });
       }
       return HttpResponse.json({ data: EVALUATIONS });
-    })
+    }),
+    http.get(mockApiUrl(getFilesListFilesetFilesQueryKey, ':workspace', ':name'), () =>
+      HttpResponse.json({ data: [] })
+    )
   );
 };
 
@@ -152,20 +177,22 @@ describe('AgentEvaluationWizard', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
-    await user.upload(
-      await screen.findByLabelText('Dataset file'),
-      new File(['{"prompt": "hi", "expected": "hi"}\n'], 'dataset.jsonl', {
-        type: 'application/json',
-      })
+    await user.click(await screen.findByLabelText('Dataset file ref'));
+    await user.paste(`${DEFAULT_WORKSPACE}/data#rows.jsonl`);
+    await user.click(
+      within(
+        await screen.findByRole('radiogroup', { name: 'Eval configuration source' })
+      ).getByRole('radio', { name: 'Use existing config' })
     );
     await user.upload(
       screen.getByLabelText('Eval configuration file'),
       new File([EVAL_CONFIG], 'eval-config.yaml', { type: 'application/yaml' })
     );
-    await waitFor(async () => {
-      await user.click(screen.getByRole('button', { name: 'Next' }));
-      expect(screen.getByLabelText('Evaluation Name')).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByText('string-check');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByLabelText('Evaluation Name');
 
     // A borrowed name would say this run is a repeat of some other experiment's run.
     expect(screen.getByLabelText<HTMLInputElement>('Evaluation Name')).toHaveValue('');
@@ -212,9 +239,11 @@ describe('AgentEvaluationWizard', () => {
 
     await user.click(screen.getByRole('radio', { name: /Create a new experiment/ }));
 
-    // The new-experiment path gains its own step, and all three are named up front.
+    // The new-experiment path gains its own steps, and all of them are named up front.
     expect(await screen.findByText('Create experiment')).toBeInTheDocument();
     expect(screen.getByText('Begin')).toBeInTheDocument();
+    expect(screen.getByText('Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Metrics')).toBeInTheDocument();
     expect(screen.getByText('Run Evaluation')).toBeInTheDocument();
   });
 
