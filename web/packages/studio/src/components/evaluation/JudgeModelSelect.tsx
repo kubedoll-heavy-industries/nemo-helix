@@ -9,7 +9,7 @@ import type { InferenceParams, ModelEntity } from '@nemo/sdk/generated/platform/
 import { FormField } from '@nvidia/foundations-react-core';
 import { useSetFieldErrorOnApiError } from '@studio/hooks/evaluation/useSetFieldErrorOnApiError';
 import { useWorkspaceFromPath } from '@studio/hooks/useWorkspaceFromPath';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { type FieldValues, type Path, useController, useFormContext } from 'react-hook-form';
 
 /** Judging needs a model that can actually serve a chat completion. */
@@ -19,7 +19,7 @@ const isChatCapable = (model: ModelEntity): boolean =>
 export interface JudgeModelSelectProps<TFieldValues extends FieldValues = FieldValues> {
   required?: boolean;
   placeholder?: string;
-  slotLabel?: string;
+  slotLabel?: ReactNode;
   /** Error to show instead of the field's own, for a problem derived outside the form state. */
   slotError?: string;
   requiredMessage?: string;
