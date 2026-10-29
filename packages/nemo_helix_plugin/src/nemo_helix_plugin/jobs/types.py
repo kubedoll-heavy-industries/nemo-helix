@@ -237,7 +237,7 @@ class JobControl(BaseModel):
 
 
 class JobDryRunCheck(BaseModel):
-    """One check a dry run made: create with ``?dry_run=true``, or a CLI preflight."""
+    """One check a dry run (create with ``?dry_run=true``) made."""
 
     name: str = Field(description="What was checked.")
     passed: bool

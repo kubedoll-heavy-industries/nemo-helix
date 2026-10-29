@@ -318,10 +318,11 @@ class NemoJob(_NamedPlugin):
         workspace: str,
         async_sdk: AsyncNemoClient,
     ) -> list[JobDryRunCheck]:
-        """The checks a dry run (create with ``?dry_run=true``) runs after :meth:`to_spec` and :meth:`compile`.
+        """This job's checks in a dry run (create with ``?dry_run=true``), after :meth:`to_spec` and :meth:`compile`.
 
-        Override to catch what would otherwise fail only once the job runs, such as
-        reading a few rows of the job's data. Checks must not create or change anything.
+        Every dry run already checks that each step's execution profile is configured.
+        Override to catch what else would fail only once the job runs, such as reading a
+        few rows of the job's data. Checks must not create or change anything.
 
         Args:
             spec: Canonical :attr:`spec_schema` instance, as :meth:`compile` received it.

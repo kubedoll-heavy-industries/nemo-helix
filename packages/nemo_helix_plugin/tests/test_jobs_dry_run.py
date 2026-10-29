@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
@@ -25,6 +26,7 @@ from starlette.testclient import TestClient
 
 _CREATE_URL = "/apis/widgets/v2/workspaces/default/jobs"
 _DRY_RUN = {"dry_run": "true"}
+_PROFILE_OK = {"name": "execution profile", "passed": True, "message": "Configured: gpu/default."}
 
 
 class _InputSpec(BaseModel):
@@ -76,9 +78,16 @@ def _client(
     return TestClient(app)
 
 
-def _create_job_spy() -> MagicMock:
+def _create_job_spy(*profiles: tuple[str, str]) -> MagicMock:
+    """The Jobs client: records creates, and lists *profiles* (by default the one the compiler uses)."""
     jobs = MagicMock()
     jobs.create_job = AsyncMock()
+    jobs.list_execution_profiles = AsyncMock(
+        return_value=[
+            SimpleNamespace(provider=provider, profile=profile)
+            for provider, profile in profiles or [("gpu", "default")]
+        ]
+    )
     return jobs
 
 
@@ -102,7 +111,9 @@ def test_a_passing_dry_run_returns_the_unsaved_job_and_its_checks() -> None:
     body = response.json()
     assert (body["name"], body["id"], body["status"]) == ("widget-a", None, None)
     assert body["spec"] == {"label": "x", "learning_rate": 5e-6}
-    assert body["status_details"] == {"checks": [{"name": "dataset rows", "passed": True, "message": "10 rows match."}]}
+    assert body["status_details"] == {
+        "checks": [_PROFILE_OK, {"name": "dataset rows", "passed": True, "message": "10 rows match."}]
+    }
     assert seen == [(_OutputSpec(label="x", learning_rate=5e-6), ["training"], "default")]
     jobs.create_job.assert_not_called()
 
@@ -112,10 +123,7 @@ def test_a_failed_check_is_a_422_that_lists_every_check() -> None:
         spec: object, platform_spec: HelixJobSpec, workspace: str, async_client: AsyncNemoClient
     ) -> list[JobDryRunCheck]:
         del spec, platform_spec, workspace, async_client
-        return [
-            JobDryRunCheck(name="execution profile", passed=True, message="Configured: gpu/default."),
-            JobDryRunCheck(name="dataset rows", passed=False, message="Row 3 has no 'messages'."),
-        ]
+        return [JobDryRunCheck(name="dataset rows", passed=False, message="Row 3 has no 'messages'.")]
 
     jobs = _create_job_spy()
     with patch("nemo_helix_plugin.jobs.api_factory.AsyncJobsClient.from_client", return_value=jobs):
@@ -124,21 +132,34 @@ def test_a_failed_check_is_a_422_that_lists_every_check() -> None:
     assert response.status_code == 422
     assert response.json()["detail"] == {
         "message": "Dry run failed: dataset rows. Nothing was created.",
-        "checks": [
-            {"name": "execution profile", "passed": True, "message": "Configured: gpu/default."},
-            {"name": "dataset rows", "passed": False, "message": "Row 3 has no 'messages'."},
-        ],
+        "checks": [_PROFILE_OK, {"name": "dataset rows", "passed": False, "message": "Row 3 has no 'messages'."}],
     }
     jobs.create_job.assert_not_called()
 
 
-def test_without_checks_a_dry_run_still_validates_and_compiles() -> None:
+def test_without_plugin_checks_a_dry_run_validates_compiles_and_checks_the_profiles() -> None:
     jobs = _create_job_spy()
     with patch("nemo_helix_plugin.jobs.api_factory.AsyncJobsClient.from_client", return_value=jobs):
         response = _client().post(_CREATE_URL, params=_DRY_RUN, json={"spec": {"label": "x"}})
 
     assert response.status_code == 200, response.text
-    assert response.json()["status_details"] == {"checks": []}
+    assert response.json()["status_details"] == {"checks": [_PROFILE_OK]}
+    jobs.create_job.assert_not_called()
+
+
+def test_a_step_profile_the_platform_does_not_have_fails_and_lists_the_configured_ones() -> None:
+    jobs = _create_job_spy(("cpu", "default"), ("gpu", "large"))
+    with patch("nemo_helix_plugin.jobs.api_factory.AsyncJobsClient.from_client", return_value=jobs):
+        response = _client().post(_CREATE_URL, params=_DRY_RUN, json={"spec": {"label": "x"}})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["checks"] == [
+        {
+            "name": "execution profile",
+            "passed": False,
+            "message": "Not configured on this platform: gpu/default. Configured: cpu/default, gpu/large.",
+        }
+    ]
     jobs.create_job.assert_not_called()
 
 

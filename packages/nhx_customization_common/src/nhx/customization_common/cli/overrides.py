@@ -42,7 +42,7 @@ from nemo_helix_plugin.commands import (
 )
 from nemo_helix_plugin.files.client import FilesClient
 from nemo_helix_plugin.models.client import ModelsClient
-from nhx.customization_common.cli.dry_run import add_preflight_command, dry_run_local, dry_run_remote
+from nhx.customization_common.cli.dry_run import dry_run_local, dry_run_remote
 from nhx.customization_common.cli.tracking import FollowResult, follow_job
 from nhx.customization_common.cli.uploads import (
     SpecRefs,
@@ -76,7 +76,6 @@ def apply_job_cli_overrides(
     spec_refs: SpecRefs | None = None,
     validate_job_spec: ValidateJobSpec | None = None,
     job_cls: type[BaseSubmitJob] | None = None,
-    kubernetes_only: bool = False,
 ) -> None:
     """Drop the generated ``run`` verb, then replace generated submit with the flat backend command.
 
@@ -84,15 +83,12 @@ def apply_job_cli_overrides(
     ``registered_commands`` in insertion order, so stale entries would route
     users back to the auto-generated shapes.
 
-    With *job_cls*, the command also takes ``--dry-run`` and gains a ``preflight``
-    subcommand; *kubernetes_only* makes preflight require a Kubernetes job backend.
+    With *job_cls*, the command also takes ``--dry-run``.
     """
     _drop_command(group, "run")
     _replace_job_callback(
         group, backend, load_job_json, job_json_help, submit_help, spec_refs, validate_job_spec, job_cls
     )
-    if job_cls is not None:
-        add_preflight_command(group, backend=backend, kubernetes_only=kubernetes_only)
 
 
 def _drop_command(group: typer.Typer, name: str) -> None:

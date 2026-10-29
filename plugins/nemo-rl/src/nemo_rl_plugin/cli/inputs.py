@@ -103,5 +103,4 @@ def apply_rl_job_cli_overrides(group: typer.Typer) -> None:
         job_json_help=_JOB_JSON_HELP,
         submit_help=_SUBMIT_HELP,
         job_cls=RlJob,
-        kubernetes_only=True,
     )

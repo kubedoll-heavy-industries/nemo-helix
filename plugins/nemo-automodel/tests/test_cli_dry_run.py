@@ -1,12 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""``nemo customization automodel --dry-run`` and ``preflight``."""
+"""``nemo customization automodel --dry-run``."""
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import respx
@@ -100,31 +99,6 @@ def test_dry_run_cannot_wait(tmp_path: Path) -> None:
     result = CliRunner().invoke(AutomodelContributor().get_cli(), ["--job-json", str(job), "--dry-run", "--wait"])
     assert result.exit_code == 2
     assert "--dry-run creates no job to wait for" in result.output
-
-
-def test_preflight_passes_with_a_gpu_profile() -> None:
-    profiles = [SimpleNamespace(provider="gpu", profile="default", backend="docker")]
-    jobs = MagicMock()
-    jobs.__enter__.return_value.list_execution_profiles.return_value = profiles
-    with patch("nhx.customization_common.cli.dry_run.JobsClient", return_value=jobs):
-        result = CliRunner().invoke(AutomodelContributor().get_cli(), ["preflight"])
-
-    assert result.exit_code == 0, result.output
-    assert [check["message"] for check in json.loads(result.output)["checks"]] == [
-        "Reachable at http://nhx.test.",
-        "Usable: gpu/default (docker).",
-    ]
-
-
-def test_preflight_fails_without_the_platform() -> None:
-    jobs = MagicMock()
-    jobs.__enter__.return_value.list_execution_profiles.side_effect = ConnectionError("refused")
-    with patch("nhx.customization_common.cli.dry_run.JobsClient", return_value=jobs):
-        result = CliRunner().invoke(AutomodelContributor().get_cli(), ["preflight"])
-
-    assert result.exit_code == 1
-    [check] = json.loads(result.output)["checks"]
-    assert check["message"].startswith("Cannot reach http://nhx.test: refused.")
 
 
 @respx.mock

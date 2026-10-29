@@ -56,7 +56,7 @@ Do not run `nemo customization --help` unless submit returns unknown plugin.
 
 ## GPUs and training image
 
-Check both before any data work, after `preflight` passes. Neither shows in `nemo jobs list-execution-profiles`, which lists a profile's `backend` and config (`node_selector`, `resources`) but not its GPUs. Where you check depends on where the jobs run, which is not the agent machine when the platform is remote (same rule as **Platform unreachable**). When you cannot check, ask the user; never assume.
+Check both before any data work, after `SKILL.md`'s platform check passes. Neither shows in `nemo jobs list-execution-profiles`, which lists a profile's `backend` and config (`node_selector`, `resources`) but not its GPUs. Where you check depends on where the jobs run, which is not the agent machine when the platform is remote (same rule as **Platform unreachable**). When you cannot check, ask the user; never assume.
 
 **GPUs of the training profile.** You need the model and count, and the compute capability when the plan needs a generation (Hopper is 9.0, Blackwell 10.0 and up; Nemotron and GRPO LoRA need one of them).
 

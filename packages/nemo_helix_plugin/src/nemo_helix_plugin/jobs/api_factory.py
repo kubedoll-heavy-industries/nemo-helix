@@ -582,7 +582,8 @@ InputToOutputTransformerAsync = Callable[
 # Job name generator: called when user doesn't provide a name
 JobNameGenerator = Callable[[], str]
 
-# The checks a ``DRY_RUN`` create runs, after transform and compile.
+# The plugin's checks a ``DRY_RUN`` create runs after transform and compile, after the
+# execution-profile check every dry run makes.
 # Signature: (transformed_spec, platform_spec, workspace, async_client) -> checks
 DryRunChecks = Callable[[Any, HelixJobSpec, str, AsyncNemoClient], Awaitable[list[JobDryRunCheck]]]
 
@@ -935,8 +936,9 @@ def job_route_factory(
             is generated. A field this model adds with a string default, such as
             ``backend: Literal["rl"] = "rl"``, is AND-ed into every list as
             ``spec.<field>``.
-        dry_run_checks: The checks a ``DRY_RUN`` create runs after transform and compile, given
-            the canonical spec and the compiled platform spec, such as reading a few dataset rows.
+        dry_run_checks: The plugin's checks a ``DRY_RUN`` create runs after transform and compile,
+            given the canonical spec and the compiled platform spec, such as reading a few dataset
+            rows. Every dry run first checks that each step's execution profile is configured.
 
     Example with separate input/output types:
         ```python
@@ -2019,8 +2021,10 @@ async def _dry_run_checks(
     async_client: AsyncNemoClient,
     plugin_checks: DryRunChecks | None,
 ) -> list[JobDryRunCheck]:
-    """Run the plugin's dry-run checks; raise 422 with all of them when any fails."""
-    checks = await plugin_checks(job_spec, platform_spec, workspace, async_client) if plugin_checks else []
+    """Check the execution profiles, then run the plugin's checks; raise 422 with all of them when any fails."""
+    checks = [await _check_execution_profiles(platform_spec, async_client)]
+    if plugin_checks:
+        checks += await plugin_checks(job_spec, platform_spec, workspace, async_client)
     failed = [check.name for check in checks if not check.passed]
     if failed:
         raise HTTPException(
@@ -2031,3 +2035,20 @@ async def _dry_run_checks(
             },
         )
     return checks
+
+
+async def _check_execution_profiles(platform_spec: HelixJobSpec, async_client: AsyncNemoClient) -> JobDryRunCheck:
+    """Check that every step's provider and profile is configured on the platform."""
+    profiles = await AsyncJobsClient.from_client(async_client).list_execution_profiles()
+    available = {(profile.provider, profile.profile) for profile in profiles}
+    used = {(step.executor.provider, step.executor.profile) for step in platform_spec.steps}
+    missing = sorted(f"{provider}/{profile}" for provider, profile in used - available)
+    if missing:
+        configured = ", ".join(sorted(f"{provider}/{profile}" for provider, profile in available)) or "none"
+        return JobDryRunCheck(
+            name="execution profile",
+            passed=False,
+            message=f"Not configured on this platform: {', '.join(missing)}. Configured: {configured}.",
+        )
+    configured_used = ", ".join(sorted(f"{provider}/{profile}" for provider, profile in used))
+    return JobDryRunCheck(name="execution profile", passed=True, message=f"Configured: {configured_used}.")
