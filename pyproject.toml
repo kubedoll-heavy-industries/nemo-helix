@@ -353,6 +353,8 @@ constraint-dependencies = [
   "nbconvert>=7.17.1",
   "nltk>=3.10.3",
   "pillow>=12.3.0",
+  # fastembed 0.8 caps pillow<13 only for python<3.13; the image runs 3.13.
+  "pillow>=13.0.0; python_version >= '3.13'",
   "postcss>=8.5.10",
   "pyasn1>=0.6.4",
   "pydantic-monty==0.0.18",                        # 0.0.19 dropped MontyRepl required by pydantic-ai-harness==0.3.0 CodeMode
@@ -369,7 +371,7 @@ constraint-dependencies = [
 
 override-dependencies = [
   # unsloth requires a later version but will never be used on macos. mostly useful for dev
-  "datasets>=3.3.1, <=4.3.0",
+  "datasets>=3.3.1, <=5.1.0",
   "jsonpath-ng>=1.6.1",
   "grpcio>=1.71.0",
   "huggingface-hub>=1.0.1,<2.0.0",
