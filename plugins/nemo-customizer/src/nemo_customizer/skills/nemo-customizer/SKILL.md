@@ -107,7 +107,7 @@ fi
 5. Else any profile with `provider: gpu` or `gpu_distributed` → **`automodel`** (default).
 6. Else stop and tell the user GPU customization is unavailable.
 
-**Platform check, before any data work.** Run `nemo customization <plugin> preflight`, adding `--profile <name>` when the user named a profile. It checks that the platform is reachable and has a GPU execution profile the plugin can use: for `rl`, one on `kubernetes_job` or `volcano_job`. It prints one line per check, with the fix on a failure, and exits non-zero if any check failed. On a failure, stop and show the user the failing lines; do not convert or upload data. For `rl` on a Docker or subprocess platform, tell the user DPO and GRPO need a Kubernetes-runtime platform: do **not** start or reuse a Docker-runtime platform, and do **not** fall back to automodel/unsloth, which train neither. To configure one: `references/rl-kubernetes-runtime.md`.
+**Platform check, before any data work.** Run `nemo customization <plugin> preflight`, adding `--profile <name>` when the user named a profile. It checks that the platform is reachable and has a GPU execution profile the plugin can use: for `rl`, one on `kubernetes_job` or `volcano_job`. It prints one line per check, with the fix on a failure, and exits non-zero if any check failed. On a failure, stop and show the user the failing lines; do not convert or upload data. Then, still before any data work, check that the profile you will train on has GPUs, of the generation the plan needs, and that the backend's training image exists where the jobs run: `references/troubleshooting.md` § **GPUs and training image**. Preflight cannot see either. When you cannot check one (a remote platform you have no access to), ask the user to confirm it instead of assuming. For `rl` on a Docker or subprocess platform, tell the user DPO and GRPO need a Kubernetes-runtime platform: do **not** start or reuse a Docker-runtime platform, and do **not** fall back to automodel/unsloth, which train neither. To configure one: `references/rl-kubernetes-runtime.md`.
 
 ## Plan the job
 
@@ -180,7 +180,7 @@ Unsloth, rl DPO and rl GRPO defaults: `references/defaults.md`. Worked examples 
 | Field glossary, JSON templates, distillation, W&B/MLflow fields | `references/hyperparameters.md` → `references/hyperparameters-automodel.md`, `references/hyperparameters-unsloth.md`, `references/hyperparameters-rl.md` |
 | Batch sizing, multi-GPU, OOM / throughput | `references/batch-sizing.md` |
 | Reporting template | `references/reporting.md` |
-| Errors: platform unreachable, profiles, images, gated HF | `references/troubleshooting.md` |
+| Before submit: GPUs and training image. Errors: platform unreachable, profiles, images, gated HF | `references/troubleshooting.md` |
 | rl Kubernetes runtime, sandboxed Gym | `references/rl-kubernetes-runtime.md` |
 | W&B secret, MLflow, jobs-launcher | `references/integrations-setup.md` |
 | Evaluation: frozen test split, base vs tuned, model IDs | `references/post-training-eval.md` |
