@@ -39,9 +39,10 @@ through training.finetuning_type.
 
 The job JSON follows the RlJobInput schema:
   model        base model entity, as 'name' or 'workspace/name'
-  dataset      fileset reference. For DPO, one fileset holding training.jsonl
-               and validation.jsonl of prompt, chosen and rejected rows. For
-               GRPO, Gym rollout rows in training.jsonl
+  dataset      fileset reference. For DPO, one fileset holding a training and
+               a validation file (names with 'train' and 'val') of prompt,
+               chosen and rejected rows. For GRPO, Gym rollout rows in a
+               training file
   environment  Gym environment fileset. Required for GRPO, unused for DPO
   training     type 'dpo' or 'grpo', plus that method's hyperparameters
 

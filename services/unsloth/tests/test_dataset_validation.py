@@ -15,7 +15,11 @@ _MESSAGES = {"messages": [{"role": "user", "content": "q"}, {"role": "assistant"
     [
         (["train.jsonl", "validation.jsonl"], "train", ["train.jsonl"]),
         (["train.jsonl", "validation.jsonl"], "validation", ["validation.jsonl"]),
-        (["/b.jsonl", "a/c.jsonl", "notes.json"], None, ["a/c.jsonl", "b.jsonl"]),
+        (["training.jsonl", "eval.jsonl"], "train", ["training.jsonl"]),
+        (["training.jsonl", "eval.jsonl"], "validation", ["eval.jsonl"]),
+        (["/b.jsonl", "a/c.jsonl", "notes.json"], None, ["b.jsonl"]),
+        (["a/c.jsonl", "a/b.jsonl"], "train", ["a/b.jsonl", "a/c.jsonl"]),
+        (["rows.jsonl"], "validation", ["rows.jsonl"]),
         (["data.json", "README.md"], "train", ["data.json"]),
     ],
 )
@@ -26,8 +30,10 @@ def test_select_data_files_picks_what_training_loads(
 
 
 def test_select_data_files_requires_a_json_file() -> None:
-    with pytest.raises(DatasetFormatError, match="No .jsonl/.json files"):
+    with pytest.raises(DatasetFormatError, match="No train .jsonl/.json files"):
         select_data_files(["README.md"])
+    with pytest.raises(DatasetFormatError, match="No train .jsonl/.json files"):
+        select_data_files(["validation.jsonl"], "train")
 
 
 @pytest.mark.parametrize(

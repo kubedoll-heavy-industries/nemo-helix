@@ -454,26 +454,19 @@ def _resolve_local_data_files(
     """Resolve a local dataset path to the JSON/JSONL file(s) to load.
 
     A file path is returned unchanged. A directory (the file_io download
-    step's output dir) is expanded to the sorted ``.jsonl`` files inside
-    it, falling back to ``.json``. Both ``.json``/``.jsonl`` and nested
-    layouts are handled via a recursive glob.
-
-    When both ``train.jsonl`` and ``validation.jsonl`` live in the same
-    directory, pass ``split`` so training and eval each load the right
-    file instead of concatenating every JSONL in the folder.
+    step's output dir) is expanded to the files of ``split``, picked by
+    :func:`select_data_files` with the rule every Customizer backend shares:
+    a ``train`` or ``val`` name, or, with neither, every top-level ``.jsonl``
+    file (falling back to ``.json``). Training and eval so each load their
+    own files instead of concatenating every JSONL in the folder.
 
     Raises:
         FileNotFoundError: if ``path`` is a directory with no JSON/JSONL
-            files under it.
+            file for the split.
     """
     from pathlib import Path
 
-    from nhx.unsloth.tasks.training.datasets.validation import (
-        TRAIN_FILE,
-        VAL_FILE,
-        DatasetFormatError,
-        select_data_files,
-    )
+    from nhx.unsloth.tasks.training.datasets.validation import DatasetFormatError, select_data_files
 
     p = Path(path).expanduser()
     if not p.is_dir():
@@ -484,8 +477,8 @@ def _resolve_local_data_files(
         files = select_data_files(paths, split)
     except DatasetFormatError as e:
         raise FileNotFoundError(f"{e} Searched dataset directory {path!r}.") from e
-    # The split's own file loads alone; anything else loads as a list of files.
-    if split is not None and files == [TRAIN_FILE if split == "train" else VAL_FILE]:
+    # A single file loads alone; several load as a list of files.
+    if len(files) == 1:
         return str(p / files[0])
     return [str(p / file) for file in files]
 

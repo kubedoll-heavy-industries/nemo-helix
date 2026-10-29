@@ -9849,8 +9849,8 @@ Run 'nemo customization `--upload-model` ... `--upload-dataset` ...' instead to
 create the resources and print their references without creating a job.
 
 Uploaded files keep their local names. NeMo-RL reads both splits from one
-fileset, so point `--upload-dataset` at a local directory holding training.jsonl
-and validation.jsonl. For GRPO, `--upload-environment` takes the environment
+fileset, so point `--upload-dataset` at a local directory holding a training and
+a validation file, named with 'train' and 'val' (training.jsonl, validation.jsonl). For GRPO, `--upload-environment` takes the environment
 directory. Build and validate that package first; the job command only uploads it.
 
 Creating a resource that already exists fails unless you pass `--exist-ok`,
@@ -10180,7 +10180,7 @@ nemo customization rl.jobs [OPTIONS] [COMMAND] [ARGS]...
 
 * `--name`: Override `name` in the spec.
 * `--model`: Model entity reference ('name' or 'workspace/name').
-* `--dataset`: Dataset fileset reference. DPO: preference JSONL (training.jsonl + validation.jsonl). GRPO: Gym JSONL (training.jsonl required).
+* `--dataset`: Dataset fileset reference. DPO: preference JSONL, a training and a validation file (names with 'train' and 'val', such as training.jsonl and validation.jsonl). GRPO: Gym JSONL, a training file required.
 * `--environment`: Environment fileset reference (required when training.type is grpo).
 * `--integrations.wandb.project`: W&B project name (groups related runs). Defaults to output.name if not set.
 * `--integrations.wandb.name`: W&B run name. Defaults to job_id if not provided.

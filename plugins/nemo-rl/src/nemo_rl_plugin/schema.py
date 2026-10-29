@@ -65,8 +65,9 @@ class RlJobInput(RlSchema):
     model: str = Field(description="Model entity reference ('name' or 'workspace/name').")
     dataset: str = Field(
         description=(
-            "Dataset fileset reference. DPO: preference JSONL (training.jsonl + validation.jsonl). "
-            "GRPO: Gym JSONL (training.jsonl required)."
+            "Dataset fileset reference. DPO: preference JSONL, a training and a validation file "
+            "(names with 'train' and 'val', such as training.jsonl and validation.jsonl). "
+            "GRPO: Gym JSONL, a training file required."
         ),
     )
     environment: str | None = Field(

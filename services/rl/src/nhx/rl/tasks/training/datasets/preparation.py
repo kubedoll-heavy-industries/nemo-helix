@@ -23,10 +23,10 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
-from fnmatch import fnmatchcase
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Optional, Union
 
+from nhx.customization_common.dataset_files import select_split_files
 from nhx.rl.app.constants import DEFAULT_SEED
 
 logger = logging.getLogger(__name__)
@@ -36,22 +36,10 @@ MERGED_DIR = "merged"
 TRAIN_FILE = "train.jsonl"
 VAL_FILE = "validation.jsonl"
 
-# Heuristic patterns for discovering training files. JSONL only: everything
-# downstream (schema detection, _merge_files, _create_val_split) is line-delimited,
-# so a plain .json array/object would produce invalid merged data or split failures.
-TRAIN_PATTERNS = [
-    "train*.jsonl",
-    "training*.jsonl",
-]
-TRAIN_DIRS = ["train", "training"]
-
-# Heuristic patterns for discovering validation files (JSONL only — see above).
-VAL_PATTERNS = [
-    "val*.jsonl",
-    "validation*.jsonl",
-    "dev*.jsonl",
-]
-VAL_DIRS = ["val", "validation", "dev"]
+# Dataset files are JSONL only: everything downstream (schema detection, _merge_files,
+# _create_val_split) is line-delimited, so a plain .json array/object would produce
+# invalid merged data or split failures.
+DATA_SUFFIXES = (".jsonl",)
 
 
 class DatasetSchema(str, Enum):
@@ -252,37 +240,14 @@ class PreparedDataset:
     validation_samples: int
 
 
-def _matching_files(paths: list[str], patterns: list[str], dirs: list[str]) -> list[str]:
-    """Pick the paths that match a pattern at the top level or sit directly in one of *dirs*.
-
-    Args:
-        paths: File paths relative to the dataset root.
-        patterns: Glob patterns to match against top-level file names (e.g., ["train*.jsonl"]).
-        dirs: Subdirectory names whose JSON/JSONL files all match (e.g., ["train", "training"]).
-
-    Returns:
-        Sorted list of matching paths.
-    """
-    matches = set()
-    for path in paths:
-        parts = PurePosixPath(path).parts
-        if len(parts) == 1 and any(fnmatchcase(parts[0], pattern) for pattern in patterns):
-            matches.add(path)
-        elif len(parts) == 2 and parts[0] in dirs and PurePosixPath(path).suffix.lower() in (".jsonl", ".json"):
-            matches.add(path)
-    return sorted(matches)  # Sorted for deterministic ordering
-
-
 def select_dataset_files(paths: list[str]) -> tuple[list[str], list[str]]:
     """
     Pick training and validation files from a dataset's file paths.
 
-    Heuristics applied (in order):
-    1. Files matching train*/training* patterns → training
-    2. Files in train/ or training/ directories → training
-    3. Files matching val*/validation*/dev* patterns → validation
-    4. Files in val/, validation/, or dev/ directories → validation
-    5. If only one .jsonl file found → treat as training (will auto-split)
+    Uses the rule every Customizer backend shares (:mod:`nhx.customization_common.dataset_files`):
+    a top-level file whose name contains ``train`` is training data, one whose name contains
+    ``val`` or starts with ``dev`` is validation data, as are the files in ``train/`` or
+    ``val/``-style directories; with neither, every top-level JSONL file is training data.
 
     Args:
         paths: File paths relative to the dataset root, as a fileset lists them.
@@ -293,27 +258,10 @@ def select_dataset_files(paths: list[str]) -> tuple[list[str], list[str]]:
     Raises:
         DatasetFormatError: If no training files can be found.
     """
-    paths = [path.lstrip("/") for path in paths]
-    train_files = _matching_files(paths, TRAIN_PATTERNS, TRAIN_DIRS)
-    val_files = _matching_files(paths, VAL_PATTERNS, VAL_DIRS)
-
-    # Fallback: if no files found with patterns, check for any .jsonl files
-    if not train_files and not val_files:
-        all_jsonl = sorted(path for path in paths if "/" not in path and path.endswith(".jsonl"))
-        if len(all_jsonl) == 1:
-            logger.info(f"Found single JSONL file, treating as training data: {all_jsonl[0]}")
-            train_files = all_jsonl
-        elif len(all_jsonl) > 1:
-            # Ambiguous - could be train/val or multiple training files
-            logger.warning(
-                f"Found {len(all_jsonl)} JSONL files without clear train/val naming. "
-                f"Treating all as training data: {all_jsonl}"
-            )
-            train_files = all_jsonl
-
+    train_files, val_files = select_split_files(paths, DATA_SUFFIXES)
     if not train_files:
         raise DatasetFormatError(
-            "No training files found. Expected files matching patterns like train*.jsonl or a train/ directory."
+            "No training files found. Expected a JSONL file whose name contains 'train', such as train.jsonl."
         )
     return train_files, val_files
 

@@ -29,7 +29,7 @@ Discriminated by `training.type`: `"dpo"` or `"grpo"`. **`training.type` is requ
 ```
 
 - `model` is a **string** ref to a registered model entity (`"name"` or `"workspace/name"`) — not an object (unsloth) and not the HF id.
-- `dataset` is a **single string** ref to a preference fileset containing `training.jsonl` + `validation.jsonl` (see `references/dataset-formats.md` § NeMo-RL). There is no separate validation ref.
+- `dataset` is a **single string** ref to a preference fileset containing a training and a validation file (such as `train.jsonl` + `validation.jsonl`) (see `references/dataset-formats.md` § NeMo-RL). There is no separate validation ref.
 - `output.name` is the full-weight model entity the job registers. Output type is always `model` (no adapter).
 
 ## GRPO job JSON layout (NeMo Gym)
@@ -54,7 +54,7 @@ GRPO needs **two** FileSets beyond the model: an environment package (code + con
 ```
 
 - `environment` is **required** for GRPO — a string ref to a FileSet with `purpose=environment` carrying a valid `nemo-environment.yaml`, in any of the three formats.
-- `dataset` is Gym JSONL (`training.jsonl` required, `validation.jsonl` optional) — rollout rows, **not** DPO preference triples and **not** `messages[]` at the top level.
+- `dataset` is Gym JSONL (a training file such as `training.jsonl` required, a validation file such as `validation.jsonl` optional; named with `train` and `val`) — rollout rows, **not** DPO preference triples and **not** `messages[]` at the top level.
 - `sandboxed` is **not** a job field: it is platform config (`NHX_RL_SANDBOXED_GYM_DEFAULT`, default `true`), and so are the two settings submit checks for it (`rl-kubernetes-runtime.md` § **Sandboxed Gym (GRPO)**).
 
 ## Field reference — shared training knobs

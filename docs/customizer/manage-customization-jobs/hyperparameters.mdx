@@ -280,7 +280,7 @@ The `rl` backend runs two methods on a Ray cluster, selected by `training.type`.
 
 | `training.type` | Trains on | Dataset |
 |-----------------|-----------|---------|
-| `"dpo"` | Preference pairs | One fileset holding `training.jsonl` and `validation.jsonl` |
+| `"dpo"` | Preference pairs | One fileset holding a training and a validation file, such as `train.jsonl` and `validation.jsonl` |
 | `"grpo"` | A reward environment | One dataset fileset of rollout rows, **plus** an environment fileset |
 
 <Note>

@@ -12,12 +12,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from fnmatch import fnmatchcase
-from pathlib import PurePosixPath
 from typing import Any, Literal
 
-TRAIN_FILE = "train.jsonl"
-VAL_FILE = "validation.jsonl"
+from nhx.customization_common.dataset_files import select_split_files, select_validation_files
 
 
 class DatasetFormatError(ValueError):
@@ -27,28 +24,33 @@ class DatasetFormatError(ValueError):
 def select_data_files(paths: Iterable[str], split: Literal["train", "validation"] | None = None) -> list[str]:
     """Pick the files training loads from a dataset's file paths.
 
-    ``train.jsonl`` or ``validation.jsonl`` at the top level wins for its split;
-    otherwise every ``.jsonl`` file, at any depth, falling back to ``.json``.
+    Uses the rule every Customizer backend shares (:mod:`nhx.customization_common.dataset_files`):
+    the training split loads the files whose name contains ``train``, or, with no file named
+    for either split, every top-level ``.jsonl`` file (falling back to ``.json``). The
+    validation split loads the files named for validation, or every file of a fileset given
+    for validation alone.
 
     Args:
         paths: File paths relative to the dataset root, as a fileset lists them.
-        split: The split being loaded, when the fileset may hold both.
+        split: The split being loaded; without one, the training split.
 
     Returns:
         The relative paths training loads, sorted.
 
     Raises:
-        DatasetFormatError: If there is no JSON or JSONL file.
+        DatasetFormatError: If no file holds the split.
     """
-    paths = sorted(path.lstrip("/") for path in paths)
-    preferred = {"train": TRAIN_FILE, "validation": VAL_FILE}.get(split or "")
-    if preferred in paths:
-        return [preferred]
-    for pattern in ("*.jsonl", "*.json"):
-        files = [path for path in paths if fnmatchcase(PurePosixPath(path).name, pattern)]
-        if files:
-            return files
-    raise DatasetFormatError("No .jsonl/.json files found. The dataset fileset must hold a JSON or JSONL file.")
+    paths = list(paths)
+    if split == "validation":
+        files = select_validation_files(paths)
+    else:
+        files, _ = select_split_files(paths)
+    if not files:
+        raise DatasetFormatError(
+            f"No {split or 'train'} .jsonl/.json files found. "
+            "Name training files with 'train' (train.jsonl) and validation files with 'val' (validation.jsonl)."
+        )
+    return files
 
 
 def validate_lines(lines: Iterable[str], source: str, *, apply_chat_template: bool, text_field: str) -> int:

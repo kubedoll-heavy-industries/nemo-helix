@@ -59,8 +59,8 @@ Run 'nemo customization --upload-model ... --upload-dataset ...' instead to
 create the resources and print their references without creating a job.
 
 Uploaded files keep their local names. NeMo-RL reads both splits from one
-fileset, so point --upload-dataset at a local directory holding training.jsonl
-and validation.jsonl. For GRPO, --upload-environment takes the environment
+fileset, so point --upload-dataset at a local directory holding a training and
+a validation file, named with 'train' and 'val' (training.jsonl, validation.jsonl). For GRPO, --upload-environment takes the environment
 directory. Build and validate that package first; the job command only uploads it.
 
 Creating a resource that already exists fails unless you pass --exist-ok,
